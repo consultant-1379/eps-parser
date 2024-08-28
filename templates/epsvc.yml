@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ printf "eps-%s" .Release.Name }}"
+spec:
+  type: NodePort
+  ports:
+  - port: {{.Values.jmx.destPort}}
+    nodePort: {{.Values.ctrParser.nodePort}}
+  selector:
+    component: "{{ printf "eps-%s-0" .Release.Name }}"

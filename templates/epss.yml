@@ -1,0 +1,100 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+    name: "{{ printf "eps-%s" .Release.Name | trunc 24 }}"
+    annotations:
+      helm.sh/created: {{.Release.Time.Seconds | quote }}      
+    labels:
+      heritage: {{.Release.Service | quote }}
+      release: {{.Release.Name | quote }}
+      chart: "{{.Chart.Name}}-{{.Chart.Version}}"
+      component: "{{ printf "eps-%s" .Release.Name  | trunc 24  }}"
+      
+spec:
+  serviceName: "{{ printf "eps-%s-0" .Release.Name | trunc 24 }}"
+  replicas: {{.Values.replicas}}
+  template:
+    metadata:
+      labels:
+        component: "{{ printf "eps-%s-0" .Release.Name | trunc 24 }}"
+      annotations:
+        {{- if (.Values.ctrParser.instrumentation_Method ) and eq .Values.ctrParser.instrumentation_Method  "JMX" }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.jmx.servicePort | quote }}
+        {{- end }}
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: event-parser
+        image: "{{ .Values.global.registry.url }}/{{ .Values.imageCredentials.repoPath }}/{{ .Values.images.ctrFileParser.name }}:{{ .Values.images.ctrFileParser.tag }}"
+        env:
+        - name: JMX_PORT
+          value: {{ .Values.jmx.destPort | quote }}
+        - name: APPLICATION_ID
+          value: {{ .Values.ctrParser.application_Id | quote }}
+        - name: APPLICATION_HOME
+          value: {{ .Values.ctrParser.application_Home | quote }}
+        - name: FLOW_DIRECTORY
+          value: {{.Values.ctrParser.flow_Directory | quote }}
+        - name: INSTRUMENTATION_ON
+          value: {{ .Values.ctrParser.instrumentation_On | quote }}
+        - name: INSTRUMENTATION_METHOD
+          value: {{ .Values.ctrParser.instrumentation_Method | quote }}
+        - name: INSTRUMENTATION_FILE_LOCATION
+          value: {{ .Values.ctrParser.instrumentation_File_Location | quote }}
+        - name: LOGBACK_FILE
+          value: {{ .Values.ctrParser.logback_File | quote }}
+        - name: LOG_DIR
+          value: {{ .Values.ctrParser.log_Dir | quote }}
+        - name: MAX_HEAP_SIZE_GB
+          value: {{ .Values.ctrParser.heap_Max | quote }}
+        - name: INITIAL_HEAP_SIZE_GB
+          value: {{ .Values.ctrParser.heap | quote}}
+        - name: EVENT_PARSER_HOST_NAME
+          value: "{{ printf "eps-%s-0.schema.default.svc.cluster.local" .Release.Name | trunc 24 }}"
+        - name: EVENT_PARSER_LISTENERS
+          value: "{{ printf "http://0.0.0.0:%s" .Values.ctrParser.listenerPort }}"
+        - name: SCHEMA_REGISTRY
+          value: "{{ printf "%s://%s:%s" .Values.schemaregistry.clientServiceProtocol .Values.schemaregistry.clientServiceName  .Values.schemaregistry.clientPort }}"
+        ports:
+        - containerPort: {{.Values.ctrParser.listenerPort}}
+          name: listener-port
+        - containerPort: {{ .Values.jmx.destPort }}
+          name: jmx-port
+        volumeMounts:
+        - name: pmdata
+          mountPath: "{{ .Values.ctrParser.dataPath}}"
+          subPath: "{{ .Values.ctrParser.dataSubPath}}"
+        - name: pmdata
+          mountPath: "{{ .Values.ctrParser.flow_Directory}}"
+          subPath: "{{ .Values.ctrParser.flowSubPath}}"
+      {{- if (.Values.ctrParser.instrumentation_Method ) and eq .Values.ctrParser.instrumentation_Method  "JMX" }}
+      - name: {{ .Chart.Name }}-jmx
+        image: "{{ .Values.global.registry.url }}/{{ .Values.imageCredentials.repoPath }}/{{ .Values.images.jmxExporter.name }}:{{ .Values.images.jmxExporter.tag }}"
+        env:
+        - name: SERVICE_PORT 
+          value: {{ .Values.jmx.servicePort | quote }}
+        - name: DEST_PORT
+          value: {{ .Values.jmx.destPort | quote }}
+        - name: RULES_MODULE 
+          value: {{ .Values.jmx.rules | quote }}
+        ports:
+        - containerPort: {{ .Values.jmx.servicePort }}
+          name: jmx-srv-port
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.jmx.servicePort }}
+          initialDelaySeconds: {{ .Values.livenessProbeInitialDelaySeconds }}
+          timeoutSeconds: {{ .Values.livenessProbeTimeoutSeconds }}
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.jmx.servicePort }}
+          initialDelaySeconds: {{ .Values.readynessProbeInitialDelaySeconds }}
+          timeoutSeconds: {{ .Values.readynessProbeTimeoutSeconds }}
+      {{- end }}
+      volumes:
+        - name: pmdata
+          nfs:
+            server: "{{ .Values.ctrParser.dataMountServer}}"
+            path: "{{ .Values.ctrParser.path}}"
+      

@@ -1,0 +1,53 @@
+# Default values for Event-Parser.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+replicas: 1
+updateStrategy: "RollingUpdate" 
+
+imageCredentials:
+  repository: armdocker.rnd.ericsson.se/aia_snapshots
+#  pullSecret: "ewoJImF1dGhzIjogewoJCSJodHRwOi8vYXJtZG9ja2VyLnJuZC5lcmljc3Nvbi5zZSI6IHsKCQkJImF1dGgiOiAiWldGd2NITmthenBMWjJsa2Qyd3FabUZySkRsNWNUaGoiCgkJfQoJfQp9"
+
+images:
+  ctrFileParser:
+    name: ctr-file-parser-0.0.1
+    tag: 0.0.1-SNAPSHOT-11
+  jmxExporter:
+    name: prometheus-jmx-exporter-0.3.1    
+    tag: 0.0.1-SNAPSHOT-17
+
+imagePullPolicy: "Always"
+
+ctrParser:
+  listenerPort: "5060"
+  nodePort: "32086"
+  application_Id: "apeps"
+  application_Home: "/ericsson/apeps"
+  flow_Directory: "/ericsson/apeps/flow"
+  instrumentation_On: "true"
+  instrumentation_Method: "JMX"
+  instrumentation_File_Location: "/ericsson/apeps/reporting"
+  logback_File: "/ericsson/apeps/etc/logback.xml"
+  log_Dir: "/ericsson/apeps/log"
+  heap: "1500M"
+  heap_Max: "1500M"
+  path: "/pmdata"
+  dataPath: "/ctr_data"
+  dataSubPath: "ctr_data" 
+  flowSubPath: "ericsson/apeps/flow"
+  dataMountServer: "10.44.149.94"
+
+schemaregistry:
+  clientServiceProtocol: "http"
+  clientServiceName: "sr-my-schemareg"
+  clientPort : "8081"
+
+jmx:
+  destPort: 10000
+  servicePort: 21000
+  rules: "default"
+
+livenessProbeInitialDelaySeconds: 180
+livenessProbeTimeoutSeconds: 10
+readynessProbeInitialDelaySeconds: 60
+readynessProbeTimeoutSeconds: 5
